@@ -1,0 +1,1528 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bflow Lab — Gerador de Prompts</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700&family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg:        #0b0b0b;
+      --bg2:       #111111;
+      --bg3:       #191919;
+      --bg4:       #222222;
+      --border:    #2a2a2a;
+      --border2:   #333333;
+      --amber:     #f59e0b;
+      --amber2:    #fbbf24;
+      --amber-dim: rgba(245,158,11,0.12);
+      --amber-glow:rgba(245,158,11,0.06);
+      --text:      #f0ece4;
+      --text2:     #a09890;
+      --text3:     #6b6560;
+      --green:     #22c55e;
+      --red:       #ef4444;
+      --radius:    10px;
+      --radius-lg: 16px;
+    }
+
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: 'DM Sans', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      line-height: 1.6;
+      overflow-x: hidden;
+    }
+
+    /* ── HEADER ── */
+    .header {
+      border-bottom: 1px solid var(--border);
+      padding: 2rem 0 1.75rem;
+      position: relative;
+      overflow: hidden;
+    }
+    .header::before {
+      content: '';
+      position: absolute;
+      top: -60px; left: 50%;
+      transform: translateX(-50%);
+      width: 600px; height: 200px;
+      background: radial-gradient(ellipse, rgba(245,158,11,0.08) 0%, transparent 70%);
+      pointer-events: none;
+    }
+    .header-inner {
+      max-width: 880px;
+      margin: 0 auto;
+      padding: 0 1.5rem;
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: 1rem;
+    }
+    .header-left {}
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      color: var(--amber);
+      background: var(--amber-dim);
+      border: 1px solid rgba(245,158,11,0.25);
+      border-radius: 100px;
+      padding: 4px 10px;
+      margin-bottom: .75rem;
+    }
+    .badge-dot {
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: var(--amber);
+      animation: pulse 2s infinite;
+    }
+    @keyframes pulse {
+      0%,100% { opacity:1; } 50% { opacity:.4; }
+    }
+    .header h1 {
+      font-family: 'Sora', sans-serif;
+      font-size: clamp(1.6rem, 3vw, 2.2rem);
+      font-weight: 700;
+      color: var(--text);
+      line-height: 1.2;
+      letter-spacing: -.02em;
+    }
+    .header h1 span { color: var(--amber); }
+    .header-desc {
+      font-size: 13.5px;
+      color: var(--text2);
+      margin-top: .4rem;
+      max-width: 480px;
+    }
+    .header-meta {
+      display: flex;
+      gap: .5rem;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    .meta-tag {
+      font-size: 11px;
+      color: var(--text3);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 4px 8px;
+      white-space: nowrap;
+    }
+
+    /* ── LAYOUT ── */
+    .app {
+      max-width: 880px;
+      margin: 0 auto;
+      padding: 2rem 1.5rem 4rem;
+    }
+
+    /* ── TABS ── */
+    .tabs-wrapper {
+      display: flex;
+      gap: 6px;
+      margin-bottom: 2rem;
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 5px;
+    }
+    .tab-btn {
+      flex: 1;
+      padding: .6rem .5rem;
+      border: none;
+      background: transparent;
+      color: var(--text3);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 13px;
+      font-weight: 500;
+      border-radius: 9px;
+      cursor: pointer;
+      transition: all .25s;
+      white-space: nowrap;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 3px;
+    }
+    .tab-icon { font-size: 16px; }
+    .tab-btn:hover { color: var(--text2); background: var(--bg3); }
+    .tab-btn.active {
+      background: var(--amber-dim);
+      color: var(--amber);
+      border: 1px solid rgba(245,158,11,0.2);
+    }
+
+    .tab-panel { display: none; animation: fadeIn .3s ease; }
+    .tab-panel.active { display: block; }
+    @keyframes fadeIn { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:translateY(0); } }
+
+    /* ── CARD ── */
+    .card {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+    }
+
+    .card-header {
+      padding: 1.4rem 1.5rem 1.2rem;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 1rem;
+    }
+    .card-header-left {}
+    .card-type {
+      font-size: 10.5px;
+      font-weight: 600;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+      color: var(--amber);
+      margin-bottom: .3rem;
+    }
+    .card-title {
+      font-family: 'Sora', sans-serif;
+      font-size: 1.2rem;
+      font-weight: 600;
+      color: var(--text);
+      line-height: 1.3;
+    }
+    .card-subtitle {
+      font-size: 12.5px;
+      color: var(--text3);
+      margin-top: .25rem;
+    }
+    .completion-badge {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 11px;
+      color: var(--text3);
+      white-space: nowrap;
+      padding-top: 3px;
+    }
+    .completion-bar {
+      width: 64px;
+      height: 4px;
+      background: var(--border2);
+      border-radius: 99px;
+      overflow: hidden;
+    }
+    .completion-fill {
+      height: 100%;
+      background: var(--amber);
+      border-radius: 99px;
+      transition: width .4s ease;
+      width: 0%;
+    }
+
+    /* ── TWO-COL LAYOUT ── */
+    .two-col {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0;
+    }
+    @media (max-width: 680px) {
+      .two-col { grid-template-columns: 1fr; }
+    }
+
+    /* ── FORM PANEL ── */
+    .form-panel {
+      padding: 1.5rem;
+      border-right: 1px solid var(--border);
+      overflow-y: auto;
+      max-height: 640px;
+    }
+    @media (max-width: 680px) {
+      .form-panel { border-right: none; border-bottom: 1px solid var(--border); max-height: none; }
+    }
+
+    .section-label {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      color: var(--text3);
+      margin-bottom: .75rem;
+      margin-top: 1.25rem;
+    }
+    .section-label:first-child { margin-top: 0; }
+    .section-label::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: var(--border);
+    }
+
+    .field { margin-bottom: .9rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label {
+      display: block;
+      font-size: 12.5px;
+      font-weight: 500;
+      color: var(--text2);
+      margin-bottom: .35rem;
+    }
+    .field input,
+    .field select,
+    .field textarea {
+      width: 100%;
+      background: var(--bg3);
+      border: 1px solid var(--border2);
+      border-radius: 8px;
+      padding: .55rem .75rem;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 13px;
+      color: var(--text);
+      outline: none;
+      transition: border-color .2s, box-shadow .2s;
+    }
+    .field input::placeholder,
+    .field textarea::placeholder { color: var(--text3); }
+    .field input:focus,
+    .field select:focus,
+    .field textarea:focus {
+      border-color: rgba(245,158,11,.4);
+      box-shadow: 0 0 0 3px rgba(245,158,11,.07);
+    }
+    .field select {
+      cursor: pointer;
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%236b6560' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right .75rem center;
+      padding-right: 2rem;
+    }
+    .field select option { background: #1a1a1a; }
+    .field textarea { resize: vertical; min-height: 60px; }
+
+    /* ── PREVIEW PANEL ── */
+    .preview-panel {
+      padding: 1.5rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    .preview-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .preview-label {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      color: var(--text3);
+    }
+    .token-count {
+      font-size: 11px;
+      color: var(--text3);
+      background: var(--bg3);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 3px 8px;
+      font-family: 'DM Mono', monospace;
+    }
+    .token-count span { color: var(--amber); }
+
+    .prompt-box {
+      flex: 1;
+      background: var(--bg3);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1rem;
+      font-family: 'DM Mono', monospace;
+      font-size: 11.5px;
+      line-height: 1.7;
+      color: var(--text2);
+      overflow-y: auto;
+      max-height: 420px;
+      white-space: pre-wrap;
+      word-break: break-word;
+      min-height: 200px;
+      position: relative;
+    }
+    .prompt-box .placeholder-msg {
+      color: var(--text3);
+      font-style: italic;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 13px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      text-align: center;
+      gap: .5rem;
+      min-height: 180px;
+    }
+    .prompt-box .placeholder-msg .big-icon { font-size: 2rem; }
+    .prompt-highlight { color: var(--amber); }
+    .prompt-section { color: var(--green); }
+
+    .copy-btn {
+      width: 100%;
+      padding: .8rem;
+      background: var(--amber);
+      border: none;
+      border-radius: var(--radius);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 14px;
+      font-weight: 600;
+      color: #0b0b0b;
+      cursor: pointer;
+      transition: all .2s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+    }
+    .copy-btn:hover { background: var(--amber2); transform: translateY(-1px); box-shadow: 0 4px 20px rgba(245,158,11,.25); }
+    .copy-btn:active { transform: translateY(0); }
+    .copy-btn.success { background: var(--green); color: #fff; }
+    .copy-btn.success:hover { background: #16a34a; }
+
+    /* ── TIPS FOOTER ── */
+    .tips {
+      margin-top: 1.5rem;
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-left: 3px solid var(--amber);
+      border-radius: var(--radius);
+      padding: 1rem 1.25rem;
+    }
+    .tips-title {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--amber);
+      letter-spacing: .05em;
+      text-transform: uppercase;
+      margin-bottom: .5rem;
+    }
+    .tips-list {
+      list-style: none;
+      display: flex;
+      flex-wrap: wrap;
+      gap: .4rem;
+    }
+    .tips-list li {
+      font-size: 12px;
+      color: var(--text3);
+      background: var(--bg3);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 3px 9px;
+    }
+    .tips-list li strong { color: var(--text2); }
+
+    /* ── MASTERS ROW ── */
+    .masters {
+      display: flex;
+      flex-wrap: wrap;
+      gap: .5rem;
+      padding: .75rem 1.5rem;
+      border-top: 1px solid var(--border);
+      background: var(--amber-glow);
+    }
+    .master-tag {
+      font-size: 11px;
+      color: var(--amber);
+      border: 1px solid rgba(245,158,11,.2);
+      border-radius: 4px;
+      padding: 2px 8px;
+      opacity: .8;
+    }
+    .masters-label {
+      font-size: 11px;
+      color: var(--text3);
+      align-self: center;
+      margin-right: 2px;
+    }
+
+    /* ── SCROLLBAR ── */
+    ::-webkit-scrollbar { width: 5px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 99px; }
+
+    /* ── FOOTER ── */
+    .site-footer {
+      text-align: center;
+      padding: 1.5rem;
+      border-top: 1px solid var(--border);
+      font-size: 12px;
+      color: var(--text3);
+    }
+    .site-footer a { color: var(--amber); text-decoration: none; }
+
+    /* ════════════════════════════════════════
+       RESPONSIVE — FULL MULTI-DEVICE SYSTEM
+       ════════════════════════════════════════ */
+
+    /* ── Large Desktop (1280px+) ── */
+    @media (min-width: 1280px) {
+      .app { max-width: 1100px; }
+      .header-inner { max-width: 1100px; }
+      .form-panel { max-height: 720px; }
+      .prompt-box { max-height: 520px; }
+    }
+
+    /* ── Standard Desktop (1024px–1279px) ── */
+    @media (min-width: 1024px) and (max-width: 1279px) {
+      .app { max-width: 960px; padding: 2rem 2rem 4rem; }
+      .header-inner { max-width: 960px; padding: 0 2rem; }
+    }
+
+    /* ── Small Laptop / Large Tablet Landscape (880px–1023px) ── */
+    @media (max-width: 1023px) {
+      .app { padding: 1.5rem 1.25rem 4rem; }
+      .header-inner { padding: 0 1.25rem; }
+      .header-meta { display: none; }
+      .two-col { grid-template-columns: 1fr 1fr; }
+      .form-panel { max-height: 580px; }
+      .prompt-box { max-height: 380px; }
+    }
+
+    /* ── Tablet Portrait / Large Mobile Landscape (640px–879px) ── */
+    @media (max-width: 879px) {
+      .app { padding: 1.25rem 1rem 3rem; }
+      .header { padding: 1.5rem 0 1.25rem; }
+      .header-inner { flex-direction: column; align-items: flex-start; gap: .5rem; }
+      .header h1 { font-size: 1.7rem; }
+      .header-desc { font-size: 13px; max-width: 100%; }
+      .header-meta { display: none; }
+
+      .tabs-wrapper { gap: 4px; padding: 4px; }
+      .tab-btn { font-size: 12px; padding: .55rem .4rem; gap: 2px; }
+      .tab-icon { font-size: 15px; }
+
+      .card-header { padding: 1.1rem 1.25rem 1rem; }
+      .card-title { font-size: 1.05rem; }
+      .card-subtitle { font-size: 12px; }
+      .completion-bar { width: 50px; }
+
+      .masters { padding: .6rem 1.25rem; gap: .4rem; }
+      .master-tag { font-size: 10px; }
+      .masters-label { font-size: 10px; }
+
+      .two-col { grid-template-columns: 1fr; }
+      .form-panel {
+        border-right: none;
+        border-bottom: 1px solid var(--border);
+        max-height: none;
+        padding: 1.25rem;
+      }
+      .preview-panel { padding: 1.25rem; }
+      .prompt-box { max-height: 320px; font-size: 11px; }
+
+      .tips { margin-top: 1.25rem; padding: .85rem 1rem; }
+    }
+
+    /* ── Mobile (480px–639px) ── */
+    @media (max-width: 639px) {
+      .app { padding: 1rem .875rem 3rem; }
+      .header { padding: 1.25rem 0 1rem; }
+      .header-inner { padding: 0 .875rem; }
+      .header h1 { font-size: 1.5rem; }
+      .badge { font-size: 10px; padding: 3px 9px; }
+
+      .tabs-wrapper {
+        gap: 3px;
+        padding: 4px;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+        flex-wrap: nowrap;
+        border-radius: var(--radius);
+      }
+      .tabs-wrapper::-webkit-scrollbar { display: none; }
+      .tab-btn {
+        font-size: 11px;
+        padding: .5rem .6rem;
+        flex-shrink: 0;
+        min-width: 70px;
+      }
+      .tab-icon { font-size: 14px; }
+
+      .card-header { padding: 1rem; gap: .75rem; }
+      .card-type { font-size: 10px; }
+      .card-title { font-size: 1rem; }
+      .card-subtitle { display: none; }
+      .completion-badge { flex-direction: column; align-items: flex-end; gap: 3px; }
+      .completion-bar { width: 44px; }
+
+      .masters { padding: .5rem 1rem; }
+      .masters-label { display: none; }
+
+      .form-panel { padding: 1rem; }
+      .preview-panel { padding: 1rem; }
+      .field { margin-bottom: .75rem; }
+      .field label { font-size: 12px; }
+      .field input,
+      .field select,
+      .field textarea { font-size: 16px; padding: .6rem .7rem; } /* 16px prevents iOS zoom */
+
+      .section-label { font-size: 10px; }
+
+      .prompt-box { max-height: 260px; font-size: 10.5px; padding: .75rem; }
+      .preview-header { flex-direction: row; }
+      .copy-btn { font-size: 13px; padding: .75rem; }
+
+      .tips { padding: .75rem .875rem; }
+      .tips-title { font-size: 11px; }
+      .tips-list li { font-size: 11px; }
+
+      .site-footer { font-size: 11px; padding: 1.25rem 1rem; }
+    }
+
+    /* ── Small Mobile (360px–479px) ── */
+    @media (max-width: 479px) {
+      .app { padding: .875rem .75rem 2.5rem; }
+      .header-inner { padding: 0 .75rem; }
+      .header h1 { font-size: 1.35rem; }
+      .header-desc { font-size: 12px; }
+
+      .tab-btn { min-width: 62px; font-size: 10.5px; padding: .45rem .5rem; }
+
+      .card-header { padding: .875rem .875rem .75rem; }
+      .card-title { font-size: .95rem; }
+
+      .form-panel { padding: .875rem; }
+      .preview-panel { padding: .875rem; }
+
+      .prompt-box { max-height: 220px; }
+      .copy-btn { font-size: 13px; }
+
+      .completion-badge { display: none; }
+    }
+
+    /* ── Extra Small (below 360px — covers narrow Androids) ── */
+    @media (max-width: 359px) {
+      .app { padding: .75rem .625rem 2rem; }
+      .header-inner { padding: 0 .625rem; }
+      .header h1 { font-size: 1.2rem; }
+
+      .tabs-wrapper { border-radius: 8px; }
+      .tab-btn { min-width: 56px; font-size: 10px; }
+
+      .form-panel,
+      .preview-panel { padding: .75rem; }
+
+      .prompt-box { max-height: 200px; font-size: 10px; }
+    }
+
+    /* ── Touch device improvements ── */
+    @media (hover: none) and (pointer: coarse) {
+      .copy-btn { padding: 1rem; min-height: 48px; }
+      .tab-btn { min-height: 44px; }
+      .field input,
+      .field select,
+      .field textarea { min-height: 44px; }
+      .copy-btn:hover { transform: none; box-shadow: none; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header class="header">
+  <div class="header-inner">
+    <div class="header-left">
+      <div class="badge"><span class="badge-dot"></span>Gerador de Prompts</div>
+      <h1>Bflow <span>Lab</span></h1>
+      <p class="header-desc">Preencha os campos e gere prompts otimizados com técnicas dos maiores copywriters do mundo.</p>
+    </div>
+    <div class="header-meta">
+      <span class="meta-tag">🎯 Hopkins</span>
+      <span class="meta-tag">✍️ Halbert</span>
+      <span class="meta-tag">🧠 Schwartz</span>
+      <span class="meta-tag">🔥 Bencivenga</span>
+    </div>
+  </div>
+</header>
+
+<!-- APP -->
+<main class="app">
+
+  <!-- TABS -->
+  <div class="tabs-wrapper">
+    <button class="tab-btn active" onclick="switchTab('leads', this)">
+      <span class="tab-icon">🎯</span>Landing Leads
+    </button>
+    <button class="tab-btn" onclick="switchTab('vendas', this)">
+      <span class="tab-icon">🛒</span>Landing Vendas
+    </button>
+    <button class="tab-btn" onclick="switchTab('calendario', this)">
+      <span class="tab-icon">📅</span>Calendário
+    </button>
+    <button class="tab-btn" onclick="switchTab('whatsapp', this)">
+      <span class="tab-icon">💬</span>WhatsApp
+    </button>
+  </div>
+
+  <!-- ════════════════ TAB: LANDING LEADS ════════════════ -->
+  <div id="panel-leads" class="tab-panel active">
+    <div class="card">
+      <div class="card-header">
+        <div class="card-header-left">
+          <div class="card-type">Landing Page · Captação de Leads</div>
+          <div class="card-title">Copy Persuasiva + Diretrizes de Design</div>
+          <div class="card-subtitle">Estrutura em 6 seções — Hopkins, Bencivenga, Halbert & Schwartz</div>
+        </div>
+        <div class="completion-badge">
+          <div class="completion-bar"><div class="completion-fill" id="fill-leads"></div></div>
+          <span id="pct-leads">0%</span>
+        </div>
+      </div>
+
+      <div class="masters">
+        <span class="masters-label">Inclui técnicas:</span>
+        <span class="master-tag">Reciprocidade</span>
+        <span class="master-tag">Escassez</span>
+        <span class="master-tag">Storytelling emocional</span>
+        <span class="master-tag">Pattern Interrupt</span>
+        <span class="master-tag">Level of Awareness</span>
+      </div>
+
+      <div class="two-col">
+        <!-- FORM -->
+        <div class="form-panel">
+
+          <div class="section-label">📋 Negócio</div>
+
+          <div class="field">
+            <label>Tipo de Negócio</label>
+            <input id="l1-negocio" type="text" placeholder="Academia de Musculação" oninput="rebuild('leads')">
+          </div>
+          <div class="field">
+            <label>Localização</label>
+            <input id="l1-local" type="text" placeholder="Brasília – DF" oninput="rebuild('leads')">
+          </div>
+          <div class="field">
+            <label>Público-alvo / Persona</label>
+            <input id="l1-persona" type="text" placeholder="Profissionais 25–45 anos, pouco tempo" oninput="rebuild('leads')">
+          </div>
+          <div class="field">
+            <label>Problema Principal do Cliente</label>
+            <input id="l1-problema" type="text" placeholder="Falta de tempo, não vê resultados" oninput="rebuild('leads')">
+          </div>
+          <div class="field">
+            <label>Diferencial Competitivo</label>
+            <input id="l1-diferencial" type="text" placeholder="Personal expert + agendamento 24h" oninput="rebuild('leads')">
+          </div>
+
+          <div class="section-label">🎨 Design & Emoção</div>
+
+          <div class="field">
+            <label>Paleta de Cores</label>
+            <input id="l1-cores" type="text" placeholder="Vermelho/laranja (energia e ação)" oninput="rebuild('leads')">
+          </div>
+          <div class="field">
+            <label>Emoção Principal a Despertar</label>
+            <select id="l1-emocao" onchange="rebuild('leads')">
+              <option value="">Escolha uma emoção…</option>
+              <option value="motivação e poder">Motivação e Poder</option>
+              <option value="confiança e segurança">Confiança e Segurança</option>
+              <option value="urgência e escassez">Urgência e Escassez</option>
+              <option value="esperança e transformação">Esperança e Transformação</option>
+              <option value="exclusividade e status">Exclusividade e Status</option>
+              <option value="alívio e solução">Alívio e Solução</option>
+            </select>
+          </div>
+
+          <div class="section-label">🔗 Link de Direcionamento</div>
+
+          <div class="field">
+            <label>Tipo de Destino do CTA</label>
+            <select id="l1-link-tipo" onchange="rebuild('leads')">
+              <option value="">Escolha…</option>
+              <option value="WhatsApp">WhatsApp</option>
+              <option value="Checkout / Página de Pagamento">Checkout / Página de Pagamento</option>
+              <option value="Link de Pagamento">Link de Pagamento</option>
+              <option value="Formulário de Cadastro">Formulário de Cadastro</option>
+              <option value="Agendamento Online">Agendamento Online</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>URL / Link</label>
+            <input id="l1-link-url" type="text" placeholder="https://wa.me/5511999999999" oninput="rebuild('leads')">
+          </div>
+
+          <div class="section-label">✍️ Copywriting</div>
+
+          <div class="field">
+            <label>Estilo de Linguagem</label>
+            <select id="l1-estilo" onchange="rebuild('leads')">
+              <option value="">Escolha um estilo…</option>
+              <option value="conversável e motivacional">Conversável e Motivacional</option>
+              <option value="profissional e direto">Profissional e Direto</option>
+              <option value="coloquial como um amigo">Coloquial — como um amigo</option>
+              <option value="urgente e incisivo">Urgente e Incisivo</option>
+              <option value="empático e acolhedor">Empático e Acolhedor</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Urgência / Escassez (opcional)</label>
+            <input id="l1-urgencia" type="text" placeholder="Apenas 10 vagas no mês de novembro" oninput="rebuild('leads')">
+          </div>
+
+        </div>
+
+        <!-- PREVIEW -->
+        <div class="preview-panel">
+          <div class="preview-header">
+            <span class="preview-label">Prompt Gerado</span>
+            <span class="token-count">~<span id="tok-leads">0</span> tokens</span>
+          </div>
+          <div class="prompt-box" id="box-leads">
+            <div class="placeholder-msg">
+              <span class="big-icon">✍️</span>
+              Preencha os campos ao lado para gerar seu prompt otimizado.
+            </div>
+          </div>
+          <button class="copy-btn" id="copybtn-leads" onclick="copyPrompt('leads')">
+            📋 Copiar Prompt Completo
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════════════════ TAB: LANDING VENDAS ════════════════ -->
+  <div id="panel-vendas" class="tab-panel">
+    <div class="card">
+      <div class="card-header">
+        <div class="card-header-left">
+          <div class="card-type">Landing Page · Venda de Produto</div>
+          <div class="card-title">Estrutura de 7 Seções + Gatilhos de Compra</div>
+          <div class="card-subtitle">Foco em conversão direta — preço, prova social e urgência</div>
+        </div>
+        <div class="completion-badge">
+          <div class="completion-bar"><div class="completion-fill" id="fill-vendas"></div></div>
+          <span id="pct-vendas">0%</span>
+        </div>
+      </div>
+
+      <div class="masters">
+        <span class="masters-label">Inclui técnicas:</span>
+        <span class="master-tag">Scarcity</span>
+        <span class="master-tag">Prova Social</span>
+        <span class="master-tag">Especificidade (Hopkins)</span>
+        <span class="master-tag">Urgência emocional</span>
+        <span class="master-tag">Transformação visual</span>
+      </div>
+
+      <div class="two-col">
+        <div class="form-panel">
+
+          <div class="section-label">🛒 Produto</div>
+
+          <div class="field">
+            <label>Nome do Produto / Serviço</label>
+            <input id="l2-produto" type="text" placeholder="Whey Protein Isolado Premium" oninput="rebuild('vendas')">
+          </div>
+          <div class="field">
+            <label>Localização / Região de Venda</label>
+            <input id="l2-local" type="text" placeholder="Goiânia – GO" oninput="rebuild('vendas')">
+          </div>
+          <div class="field">
+            <label>Preço (ex: R$ 89,90)</label>
+            <input id="l2-preco" type="text" placeholder="R$ 89,90" oninput="rebuild('vendas')">
+          </div>
+          <div class="field">
+            <label>Público-alvo</label>
+            <input id="l2-publico" type="text" placeholder="Homens 25–40, praticantes de musculação" oninput="rebuild('vendas')">
+          </div>
+          <div class="field">
+            <label>4 Principais Atributos / Benefícios</label>
+            <textarea id="l2-atributos" placeholder="25g proteína, 0 açúcar, sabor premium, absorção rápida" oninput="rebuild('vendas')"></textarea>
+          </div>
+
+          <div class="section-label">🎨 Percepção & Design</div>
+
+          <div class="field">
+            <label>Percepção Desejada</label>
+            <select id="l2-percepcao" onchange="rebuild('vendas')">
+              <option value="">Escolha…</option>
+              <option value="luxo e premium">Luxo e Premium</option>
+              <option value="energia e performance">Energia e Performance</option>
+              <option value="confiança e saúde">Confiança e Saúde</option>
+              <option value="inovação e tecnologia">Inovação e Tecnologia</option>
+              <option value="custo-benefício e acessível">Custo-benefício e Acessível</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Paleta de Cores</label>
+            <input id="l2-cores" type="text" placeholder="Preto/ouro para premium ou vermelho/preto para energia" oninput="rebuild('vendas')">
+          </div>
+
+          <div class="section-label">🔗 Link de Direcionamento</div>
+
+          <div class="field">
+            <label>Tipo de Destino do CTA</label>
+            <select id="l2-link-tipo" onchange="rebuild('vendas')">
+              <option value="">Escolha…</option>
+              <option value="WhatsApp">WhatsApp</option>
+              <option value="Checkout / Página de Pagamento">Checkout / Página de Pagamento</option>
+              <option value="Link de Pagamento">Link de Pagamento</option>
+              <option value="Formulário de Cadastro">Formulário de Cadastro</option>
+              <option value="Agendamento Online">Agendamento Online</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>URL / Link</label>
+            <input id="l2-link-url" type="text" placeholder="https://pay.hotmart.com/..." oninput="rebuild('vendas')">
+          </div>
+
+          <div class="section-label">✍️ Gatilho Principal</div>
+
+          <div class="field">
+            <label>Gatilho Psicológico Primário</label>
+            <select id="l2-gatilho" onchange="rebuild('vendas')">
+              <option value="">Escolha…</option>
+              <option value="escassez (50 primeiros clientes)">Escassez (50 primeiros)</option>
+              <option value="prova social (8kg ganhos em 4 semanas)">Prova Social (resultados reais)</option>
+              <option value="urgência (promoção até meia-noite)">Urgência (deadline real)</option>
+              <option value="autoridade (certificado + especialistas)">Autoridade (certificação)</option>
+              <option value="garantia incondicional de 30 dias">Garantia Incondicional 30 dias</option>
+            </select>
+          </div>
+
+        </div>
+
+        <div class="preview-panel">
+          <div class="preview-header">
+            <span class="preview-label">Prompt Gerado</span>
+            <span class="token-count">~<span id="tok-vendas">0</span> tokens</span>
+          </div>
+          <div class="prompt-box" id="box-vendas">
+            <div class="placeholder-msg">
+              <span class="big-icon">🛒</span>
+              Preencha os campos ao lado para gerar seu prompt otimizado.
+            </div>
+          </div>
+          <button class="copy-btn" id="copybtn-vendas" onclick="copyPrompt('vendas')">
+            📋 Copiar Prompt Completo
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════════════════ TAB: CALENDÁRIO ════════════════ -->
+  <div id="panel-calendario" class="tab-panel">
+    <div class="card">
+      <div class="card-header">
+        <div class="card-header-left">
+          <div class="card-type">Calendário de Conteúdo · 30 Dias</div>
+          <div class="card-title">Estratégia Completa de Posts com Copy</div>
+          <div class="card-subtitle">60% Educação · 30% Entretenimento · 10% Vendas</div>
+        </div>
+        <div class="completion-badge">
+          <div class="completion-bar"><div class="completion-fill" id="fill-calendario"></div></div>
+          <span id="pct-calendario">0%</span>
+        </div>
+      </div>
+
+      <div class="masters">
+        <span class="masters-label">Inclui técnicas:</span>
+        <span class="master-tag">Storytelling de transformação</span>
+        <span class="master-tag">Mix 60/30/10</span>
+        <span class="master-tag">Pattern interrupts</span>
+        <span class="master-tag">Social proof contínuo</span>
+      </div>
+
+      <div class="two-col">
+        <div class="form-panel">
+
+          <div class="section-label">📋 Negócio & Plataforma</div>
+
+          <div class="field">
+            <label>Tipo de Negócio</label>
+            <input id="c1-negocio" type="text" placeholder="Academia de Fitness" oninput="rebuild('calendario')">
+          </div>
+          <div class="field">
+            <label>Plataforma Principal</label>
+            <select id="c1-plataforma" onchange="rebuild('calendario')">
+              <option value="">Escolha…</option>
+              <option value="Instagram">Instagram</option>
+              <option value="LinkedIn">LinkedIn</option>
+              <option value="TikTok">TikTok</option>
+              <option value="Blog">Blog / SEO</option>
+              <option value="YouTube">YouTube</option>
+              <option value="Facebook">Facebook</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Objetivo Principal do Mês</label>
+            <input id="c1-objetivo" type="text" placeholder="Aumentar inscrições em 50%" oninput="rebuild('calendario')">
+          </div>
+          <div class="field">
+            <label>Descrição da Persona</label>
+            <input id="c1-persona" type="text" placeholder="Homens 25–40 que querem ganhar massa" oninput="rebuild('calendario')">
+          </div>
+
+          <div class="section-label">📌 Conteúdo</div>
+
+          <div class="field">
+            <label>Formato do Conteúdo</label>
+            <select id="c1-formato" onchange="rebuild('calendario')">
+              <option value="">Escolha…</option>
+              <option value="Carrossel de 6 cards">Carrossel — 6 Cards</option>
+              <option value="Imagem estática">Imagem Estática</option>
+              <option value="Vídeo curto — Reels de 45 segundos">Reels — Vídeo Curto 45s</option>
+              <option value="Sequência de 4 Stories">Sequência de 4 Stories</option>
+            </select>
+          </div>
+
+          <div class="field">
+            <label>5 Temas Principais (separados por vírgula)</label>
+            <input id="c1-temas" type="text" placeholder="Treino, Nutrição, Antes/Depois, Promoção, Lifestyle" oninput="rebuild('calendario')">
+          </div>
+          <div class="field">
+            <label>Frequência de Posts</label>
+            <select id="c1-frequencia" onchange="rebuild('calendario')">
+              <option value="">Escolha…</option>
+              <option value="3 posts por semana">3 posts / semana</option>
+              <option value="4 posts por semana">4 posts / semana</option>
+              <option value="5 posts por semana">5 posts / semana</option>
+              <option value="7 posts por semana (diário)">Diário (7/semana)</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Tom de Voice</label>
+            <select id="c1-tom" onchange="rebuild('calendario')">
+              <option value="">Escolha…</option>
+              <option value="motivacional e energético">Motivacional e Energético</option>
+              <option value="educativo e expert">Educativo e Expert</option>
+              <option value="amigável e conversável">Amigável e Conversável</option>
+              <option value="inspirador e aspiracional">Inspirador e Aspiracional</option>
+              <option value="direto e incisivo">Direto e Incisivo</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Técnica de Copy Primária</label>
+            <select id="c1-tecnica" onchange="rebuild('calendario')">
+              <option value="">Escolha…</option>
+              <option value="storytelling + antes/depois">Storytelling + Antes/Depois</option>
+              <option value="educação + prova social">Educação + Prova Social</option>
+              <option value="curiosidade + pattern interrupt">Curiosidade + Pattern Interrupt</option>
+              <option value="escassez + urgência">Escassez + Urgência</option>
+            </select>
+          </div>
+
+        </div>
+
+        <div class="preview-panel">
+          <div class="preview-header">
+            <span class="preview-label">Prompt Gerado</span>
+            <span class="token-count">~<span id="tok-calendario">0</span> tokens</span>
+          </div>
+          <div class="prompt-box" id="box-calendario">
+            <div class="placeholder-msg">
+              <span class="big-icon">📅</span>
+              Preencha os campos ao lado para gerar seu prompt otimizado.
+            </div>
+          </div>
+          <button class="copy-btn" id="copybtn-calendario" onclick="copyPrompt('calendario')">
+            📋 Copiar Prompt Completo
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════════════════ TAB: WHATSAPP ════════════════ -->
+  <div id="panel-whatsapp" class="tab-panel">
+    <div class="card">
+      <div class="card-header">
+        <div class="card-header-left">
+          <div class="card-type">Funil de WhatsApp · 4 Mensagens + Follow-ups</div>
+          <div class="card-title">Sequência de Conversão com Gatilhos Psicológicos</div>
+          <div class="card-subtitle">Boas-vindas → Agitação → Prova Social → CTA Final + 2 Follow-ups</div>
+        </div>
+        <div class="completion-badge">
+          <div class="completion-bar"><div class="completion-fill" id="fill-whatsapp"></div></div>
+          <span id="pct-whatsapp">0%</span>
+        </div>
+      </div>
+
+      <div class="masters">
+        <span class="masters-label">Gatilhos em sequência:</span>
+        <span class="master-tag">Reciprocidade → Msg1</span>
+        <span class="master-tag">Agitação → Msg2</span>
+        <span class="master-tag">Social Proof → Msg3</span>
+        <span class="master-tag">Escassez → Msg4</span>
+        <span class="master-tag">Desconto → Follow-up B</span>
+      </div>
+
+      <div class="two-col">
+        <div class="form-panel">
+
+          <div class="section-label">🎯 Objetivo & Produto</div>
+
+          <div class="field">
+            <label>Objetivo do Funil</label>
+            <select id="w1-objetivo" onchange="rebuild('whatsapp')">
+              <option value="">Escolha…</option>
+              <option value="venda direta">Venda Direta</option>
+              <option value="agendamento de consulta">Agendamento de Consulta</option>
+              <option value="trial / primeira aula grátis">Trial / Primeira Aula Grátis</option>
+              <option value="lead para consultoria">Lead para Consultoria</option>
+              <option value="reativação de cliente inativo">Reativação de Cliente</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Produto / Serviço</label>
+            <input id="w1-produto" type="text" placeholder="Whey Protein Isolado" oninput="rebuild('whatsapp')">
+          </div>
+          <div class="field">
+            <label>Público-alvo</label>
+            <input id="w1-persona" type="text" placeholder="Homens 25–40 praticantes de musculação" oninput="rebuild('whatsapp')">
+          </div>
+          <div class="field">
+            <label>Localização</label>
+            <input id="w1-local" type="text" placeholder="Belo Horizonte – MG" oninput="rebuild('whatsapp')">
+          </div>
+
+          <div class="section-label">📲 Lead & Contexto</div>
+
+          <div class="field">
+            <label>Origem do Lead</label>
+            <select id="w1-origem" onchange="rebuild('whatsapp')">
+              <option value="">Escolha…</option>
+              <option value="anúncio no Instagram">Anúncio Instagram</option>
+              <option value="anúncio no Google">Anúncio Google</option>
+              <option value="landing page">Landing Page</option>
+              <option value="indicação de amigo">Indicação / Boca a boca</option>
+              <option value="post orgânico">Post Orgânico</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Nível de Confiança do Lead</label>
+            <select id="w1-confianca" onchange="rebuild('whatsapp')">
+              <option value="">Escolha…</option>
+              <option value="alto — já conhece a marca">Alto — já conhece a marca</option>
+              <option value="médio — viu anúncio e se interessou">Médio — viu anúncio</option>
+              <option value="baixo — lead frio">Baixo — lead frio</option>
+            </select>
+          </div>
+
+          <div class="section-label">✍️ Copy & Urgência</div>
+
+          <div class="field">
+            <label>Principal Benefício (tangível)</label>
+            <input id="w1-beneficio" type="text" placeholder="25g proteína, absorção rápida, sabor premium" oninput="rebuild('whatsapp')">
+          </div>
+          <div class="field">
+            <label>Gatilho de Urgência</label>
+            <input id="w1-urgencia" type="text" placeholder="15 unidades restantes / promoção até domingo" oninput="rebuild('whatsapp')">
+          </div>
+
+        </div>
+
+        <div class="preview-panel">
+          <div class="preview-header">
+            <span class="preview-label">Prompt Gerado</span>
+            <span class="token-count">~<span id="tok-whatsapp">0</span> tokens</span>
+          </div>
+          <div class="prompt-box" id="box-whatsapp">
+            <div class="placeholder-msg">
+              <span class="big-icon">💬</span>
+              Preencha os campos ao lado para gerar seu prompt otimizado.
+            </div>
+          </div>
+          <button class="copy-btn" id="copybtn-whatsapp" onclick="copyPrompt('whatsapp')">
+            📋 Copiar Prompt Completo
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TIPS -->
+  <div class="tips">
+    <div class="tips-title">💡 Como usar</div>
+    <ul class="tips-list">
+      <li>Preencha todos os campos para <strong>melhor qualidade</strong></li>
+      <li>Copie o prompt e cole no <strong>Claude, ChatGPT ou Gemini</strong></li>
+      <li>Todos os prompts incluem <strong>técnicas de persuasão</strong> automaticamente</li>
+      <li>Adapte e teste variações (<strong>A/B</strong>) dos resultados gerados</li>
+      <li>Sempre <strong>humanize</strong> os outputs antes de publicar</li>
+    </ul>
+  </div>
+
+</main>
+
+<footer class="site-footer">
+  2026 Bflow Lab™ · Todos os Direitos Reservados
+</footer>
+
+<script>
+// ──────────────────────────────────────────
+// TEMPLATES
+// ──────────────────────────────────────────
+function val(id, fallback) {
+  const el = document.getElementById(id);
+  if (!el) return fallback;
+  return (el.value || '').trim() || fallback;
+}
+
+const templates = {
+
+  leads: () => {
+    const negocio    = val('l1-negocio',   '[TIPO DE NEGÓCIO]');
+    const local      = val('l1-local',     '[LOCALIZAÇÃO]');
+    const persona    = val('l1-persona',   '[PERSONA]');
+    const problema   = val('l1-problema',  '[PROBLEMA PRINCIPAL]');
+    const diferencial= val('l1-diferencial','[DIFERENCIAL]');
+    const cores      = val('l1-cores',     '[PALETA DE CORES]');
+    const emocao     = val('l1-emocao',    '[EMOÇÃO PRINCIPAL]');
+    const estilo     = val('l1-estilo',    '[ESTILO DE LINGUAGEM]');
+    const urgencia   = val('l1-urgencia',  '');
+    const linkTipo   = val('l1-link-tipo', '[TIPO DE DESTINO]');
+    const linkUrl    = val('l1-link-url',  '[URL DO LINK]');
+    const urgTrecho  = urgencia ? `\nUrgência/escassez a aplicar: ${urgencia}.` : '';
+
+    return `Crie uma landing page persuasiva para capturar leads para ${negocio} em ${local}.
+
+INFORMAÇÕES ESSENCIAIS:
+• Público-alvo: ${persona}
+• Problema principal que resolve: ${problema}
+• Diferencial competitivo: ${diferencial}
+• Emoção principal a despertar: ${emocao}
+• Estilo de linguagem: ${estilo}${urgTrecho}
+• Destino do CTA: ${linkTipo}
+• Link de direcionamento: ${linkUrl}
+
+ESTRUTURA OBRIGATÓRIA — 6 seções, máx. 150 palavras cada:
+1. Hero — headline impactante + subheadline + CTA principal (botão)
+2. Problema + Agitação — mergulhe na dor, amplifique a frustração
+3. Solução — 3 benefícios numerados (resultado tangível, não feature)
+4. Prova Social — depoimento ou resultado mensurável (máx. 2 linhas)
+5. CTA Secundário + Urgência — reforce o chamado com limite temporal/quantidade
+6. FAQ Rápida — 3 perguntas que removem objeção de compra
+
+OUTPUT: Markdown estruturado com títulos de seção em ##.
+
+ORIENTAÇÕES DE COPYWRITING:
+• Claude Hopkins: seja específico e mensurável (evite vaguezas como "ótimo resultado")
+• Gary Bencivenga: storytelling emocional — conecte com a dor ANTES de apresentar a solução; use pattern interrupts na abertura
+• Gary Halbert: escreva como se fosse uma carta para um amigo; use power words; crie desejo além do produto
+• Eugene Schwartz: identifique o nível de awareness do cliente (solution-aware) e ajuste o messaging; desperte curiosidade genuína
+• Princípios universais a aplicar: reciprocidade (entregue valor antes), escassez (real, não falsa), autoridade, prova social, comprometimento progressivo
+• A copy deve começar reconhecendo a frustração real do público — NUNCA com o produto
+
+ORIENTAÇÕES DE DESIGN UX/UI:
+• Hierarquia visual clara: título > subtítulo > body > CTA
+• Paleta de cores sugerida: ${cores}
+• Cor primária (marca/força), cor de CTA (quente: laranja/vermelho), cor de prova social (verde/azul), cor de urgência (vermelho)
+• Espaçamento generoso entre seções (respiro visual)
+• CTA sempre em botão de alto contraste com verbo de ação no infinitivo ("Quero minha vaga", "Garantir meu lugar")
+• O botão principal e todos os CTAs devem direcionar para: ${linkTipo} — use o link: ${linkUrl}
+• Mobile-first: considere que 70%+ dos acessos são via celular`;
+  },
+
+  vendas: () => {
+    const produto    = val('l2-produto',   '[PRODUTO/SERVIÇO]');
+    const local      = val('l2-local',     '[LOCALIZAÇÃO]');
+    const preco      = val('l2-preco',     '[PREÇO]');
+    const publico    = val('l2-publico',   '[PÚBLICO-ALVO]');
+    const atributos  = val('l2-atributos', '[ATRIBUTOS PRINCIPAIS]');
+    const percepcao  = val('l2-percepcao', '[PERCEPÇÃO DESEJADA]');
+    const cores      = val('l2-cores',     '[PALETA DE CORES]');
+    const gatilho    = val('l2-gatilho',   '[GATILHO PSICOLÓGICO]');
+    const linkTipo2  = val('l2-link-tipo', '[TIPO DE DESTINO]');
+    const linkUrl2   = val('l2-link-url',  '[URL DO LINK]');
+
+    return `Crie uma landing page de vendas para ${produto} vendido em ${local}.
+
+INFORMAÇÕES DO PRODUTO:
+• Preço: ${preco}
+• Público-alvo: ${publico}
+• Principais atributos/benefícios: ${atributos}
+• Percepção desejada: ${percepcao}
+• Gatilho psicológico primário: ${gatilho}
+• Destino do CTA: ${linkTipo2}
+• Link de direcionamento: ${linkUrl2}
+
+ESTRUTURA OBRIGATÓRIA — 7 seções, máx. 120 palavras cada:
+1. Hero — descrição visual do produto + headline orientada a resultado + CTA em negrito
+2. Problema que resolve — agite a dor antes de apresentar o produto
+3. Especificações técnicas — 3 bullets com dados concretos (números reais)
+4. Diferencial vs. concorrência — por que este produto, não outro
+5. Prova Social — depoimento real ou métrica mensurável (ex: "João ganhou 8kg em 6 semanas")
+6. Preço + Formas de Pagamento — apresente o valor sem desculpas; destaque o custo por dia se aplicável
+7. CTA Final + Garantia + Urgência — botão de compra, garantia e elemento de escassez
+
+OUTPUT: Markdown com emojis sutis (máx. 1 por seção). CTAs em **negrito**.
+
+ORIENTAÇÕES DE COPYWRITING:
+• Claude Hopkins: especificidade total — números concretos geram mais confiança do que adjetivos
+• Gary Bencivenga: crie urgência emocional focando na frustração antes de qualquer solução; storytelling breve de transformação
+• Gary Halbert: linguagem natural como conversa direta; power words que criam desejo de resultado visual
+• Eugene Schwartz: leve o lead de "solution aware" para "ready to buy" com scarcity + social proof composto
+• Na seção de preço: reframe o valor (custo por dia / comparação com alternativas inferiores)
+• Evite "compre agora" genérico — use CTAs orientados a resultado: "Quero meu ${produto}", "Garantir meu estoque"
+• O botão principal e todos os CTAs devem direcionar para: ${linkTipo2} — use o link: ${linkUrl2}
+
+ORIENTAÇÕES DE DESIGN UX/UI:
+• Percepção visual alvo: ${percepcao}
+• Paleta sugerida: ${cores}
+• Cor primária (identidade da marca), cor do CTA (criar impulso imediato), cor de prova social (transmitir credibilidade)
+• Foto/mockup do produto em destaque no Hero (alta qualidade, fundo clean)
+• Seção de preço: número grande, legível, sem distrações visuais`;
+  },
+
+  calendario: () => {
+    const negocio    = val('c1-negocio',    '[TIPO DE NEGÓCIO]');
+    const plataforma = val('c1-plataforma', '[PLATAFORMA]');
+    const objetivo   = val('c1-objetivo',   '[OBJETIVO DO MÊS]');
+    const persona    = val('c1-persona',    '[PERSONA]');
+    const temas      = val('c1-temas',      '[5 TEMAS PRINCIPAIS]');
+    const frequencia = val('c1-frequencia', '[FREQUÊNCIA]');
+    const tom        = val('c1-tom',        '[TOM DE VOZ]');
+    const tecnica    = val('c1-tecnica',    '[TÉCNICA PRIMÁRIA]');
+    const formato    = val('c1-formato',    '[FORMATO DO CONTEÚDO]');
+
+    return `Crie um calendário de conteúdo de 30 dias para ${plataforma} do negócio: ${negocio}.
+
+CONTEXTO ESTRATÉGICO:
+• Objetivo do mês: ${objetivo}
+• Persona: ${persona}
+• Temas principais: ${temas}
+• Frequência: ${frequencia}
+• Tom de voice: ${tom}
+• Técnica de copy primária: ${tecnica}
+• Formato principal do conteúdo: ${formato}
+
+ESTRUTURA POR POST — forneça cada um com:
+1. Data e dia da semana
+2. Tema do post
+3. Copy completa (80–150 palavras, tom: ${tom})
+4. CTA específica e acionável
+5. Formato visual sugerido — descrição em 2 linhas (sem precisar de designer)
+6. Hashtags relevantes — máx. 5
+
+DISTRIBUIÇÃO OBRIGATÓRIA (60/30/10):
+• 60% Educativo: dicas práticas, tutoriais, "como fazer", números concretos
+• 30% Entretenimento: bastidores, humor leve, storytelling de transformação, before/after
+• 10% Venda: ofertas diretas, promoções, CTAs de compra
+
+OUTPUT: Tabela clara ou lista numerada. Destaque com ⭐ as datas com estratégia especial (lançamentos, promoções, datas sazonais).
+
+ORIENTAÇÕES DE COPYWRITING POR TIPO:
+Posts EDUCATIVOS (60%):
+• Claude Hopkins: seja específico — exercício X, série Y, reps Z, resultado em N semanas
+• Gary Bencivenga: storytelling breve de transformação (antes→depois em 3 linhas)
+• Desperte curiosidade com headlines do tipo: "O erro que 90% comete em [TEMA]"
+
+Posts ENTRETENIMENTO (30%):
+• Gary Halbert: linguagem de amigo, não de marca corporativa
+• Histórias reais de clientes = desejo + identificação + prova social
+• Use pattern interrupts visuais (formato carrossel, poll, pergunta provocativa)
+
+Posts VENDAS (10%):
+• Reciprocidade primeiro (entregue valor): "Você viu nosso guia gratuito sobre X?"
+• Depois escassez real: vagas limitadas, lote especial, deadline concreto
+• CTA irresistível orientada a resultado: "Quero começar hoje" > "Compre agora"
+
+FORMATOS VARIADOS (sugira mix de):
+Carrossel educativo · Reels (roteiro 15–30s) · Story sequencial · Post texto longo · Infográfico simples · Vídeo depoimento
+
+DIRETRIZES ESPECÍFICAS PARA O FORMATO "${formato}":
+${formato === 'Carrossel de 6 cards' ? `• Card 1 — Capa: headline que para o scroll (pergunta, dado chocante ou afirmação ousada)
+• Cards 2–5 — Desenvolvimento: um ponto por card, texto curto (máx. 2 linhas), ícone ou dado visual
+• Card 6 — CTA: próximo passo claro + arroba/link
+• Dica de design: fundo consistente, tipografia grande, leitura em 3 segundos por card` : ''}${formato === 'Imagem estática' ? `• Hierarquia visual: headline em destaque ocupa 60% do espaço
+• Subtítulo de apoio (máx. 1 linha) + CTA visível
+• Texto da legenda complementa a imagem — não repete o que já está no visual
+• Dica de design: fundo de cor sólida ou gradiente simples, sem poluição visual` : ''}${formato === 'Vídeo curto — Reels de 45 segundos' ? `• 0–5s — Hook visual/verbal: frase que prende ("Você ainda faz isso?", "Erro que custa caro…")
+• 5–35s — Desenvolvimento: 3 pontos rápidos ou 1 demonstração prática
+• 35–45s — CTA falada + texto na tela: "Salva esse vídeo", "Comenta X", "Link na bio"
+• Forneça o roteiro completo linha a linha com indicação de legenda na tela (texto overlay)` : ''}${formato === 'Sequência de 4 Stories' ? `• Story 1 — Gancho: pergunta, enquete ou afirmação polêmica (gera tap para continuar)
+• Story 2 — Contexto/problema: desenvolva a situação em 1–2 frases
+• Story 3 — Solução/valor: entregue o insight ou dica principal
+• Story 4 — CTA: link, resposta ao DM, enquete de confirmação ou swipe up
+• Cada story: máx. 3 linhas de texto + sugestão de sticker interativo` : ''}`
+  },
+
+  whatsapp: () => {
+    const objetivo   = val('w1-objetivo',  '[OBJETIVO]');
+    const produto    = val('w1-produto',   '[PRODUTO/SERVIÇO]');
+    const persona    = val('w1-persona',   '[PERSONA]');
+    const local      = val('w1-local',     '[LOCALIZAÇÃO]');
+    const origem     = val('w1-origem',    '[ORIGEM DO LEAD]');
+    const confianca  = val('w1-confianca', 'médio');
+    const beneficio  = val('w1-beneficio', '[BENEFÍCIO PRINCIPAL]');
+    const urgencia   = val('w1-urgencia',  '[URGÊNCIA/ESCASSEZ]');
+
+    return `Crie uma sequência completa de WhatsApp para ${objetivo} de ${produto} para ${persona} em ${local}.
+
+CONTEXTO DO LEAD:
+• Origem: ${origem}
+• Nível de confiança: ${confianca}
+• Benefício principal a comunicar: ${beneficio}
+• Gatilho de urgência/escassez: ${urgencia}
+
+REGRAS DE FORMATO OBRIGATÓRIAS:
+• Cada mensagem: máx. 3–4 linhas de WhatsApp (formato mobile real)
+• Linguagem: 100% conversável — como um amigo, nunca como empresa
+• Sem abreviações excessivas, sem formalidade
+• Após cada mensagem: informe o HORÁRIO IDEAL DE ENVIO e o GATILHO PSICOLÓGICO ativado
+
+──────────────────────────────
+MENSAGEM 1 — Enviar: 0–1h após captura do lead
+Gatilho: RECIPROCIDADE
+• Saudação com nome (use {NOME} como placeholder)
+• Reconhecimento explícito do interesse: "Vi que você se interessou em..."
+• Pergunta simples e aberta que convida ao diálogo
+• Sem venda — objetivo: estabelecer confiança
+• Máx. 1 emoji (sutil)
+
+MENSAGEM 2 — Enviar: 24h depois
+Gatilho: AGITAÇÃO + INTRODUÇÃO DA SOLUÇÃO
+• Espelhe o problema real da persona
+• Introduza como ${produto} resolve exatamente isso
+• Um benefício tangível e mensurável: ${beneficio}
+• Convite soft: "Quer saber como isso funciona?"
+• Gatilho linguístico: "Muitos clientes passaram exatamente por isso..."
+
+MENSAGEM 3 — Enviar: 48h depois
+Gatilho: PROVA SOCIAL + CREDIBILIDADE
+• Depoimento real ou métrica de resultado (máx. 1 linha — ex: "A Ana perdeu 4kg em 3 semanas")
+• Reforça credibilidade sem soar vendedor
+• Pergunta de confirmação que leva ao próximo passo
+• Scarcity social: "Essa semana mais 3 pessoas já estão usando"
+
+MENSAGEM 4 — Enviar: 72h depois
+Gatilho: ESCASSEZ + CTA FINAL
+• CTA clara e específica com verbo de ação: "Agendar agora", "Garantir minha unidade"
+• Urgência real: ${urgencia}
+• Remoção total de atrito: link direto ou instruções de 1 passo
+• Pergunta de fechamento: "Posso reservar seu lugar?"
+
+──────────────────────────────
+FOLLOW-UP A — Enviar: 24–48h após Msg4 sem resposta
+Gatilho: REATIVAÇÃO EDUCATIVA (não bata na mesma ferida)
+• Entregue valor extra gratuito: dica prática, mini-guia, recurso
+• Posicione como genuinamente querendo ajudar: "Preparei algo que pode te ajudar..."
+• Tom: "Sem compromisso, só porque achei que seria útil pra você"
+• Não mencione produto nem venda
+
+FOLLOW-UP B — Enviar: 48–72h após Msg4 sem resposta
+Gatilho: OFERTA ESPECIAL (último recurso)
+• Oferta concreta e personalizada: desconto exclusivo, bônus, condição especial
+• Limitação clara e crível: "Válido só pra você até [dia]"
+• Tom direto mas amigável: sem desespero, com confiança
+• Máxima remoção de atrito: "Só me responde com SIM que resolvo tudo"
+
+──────────────────────────────
+ORIENTAÇÕES FINAIS:
+• Nível de confiança do lead (${confianca}) deve calibrar o tom: lead frio = mais valor/educação antes de vender; lead quente = pode ir direto
+• Cada mensagem deve parecer escrita por uma pessoa real, não por uma empresa ou robô
+• Evite múltiplos emojis, exclamações em excesso ou linguagem corporativa`;
+  }
+};
+
+// ──────────────────────────────────────────
+// REBUILD + COMPLETUDE
+// ──────────────────────────────────────────
+const fieldMap = {
+  leads:     ['l1-negocio','l1-local','l1-persona','l1-problema','l1-diferencial','l1-cores','l1-emocao','l1-estilo','l1-link-tipo','l1-link-url'],
+  vendas:    ['l2-produto','l2-local','l2-preco','l2-publico','l2-atributos','l2-percepcao','l2-cores','l2-gatilho','l2-link-tipo','l2-link-url'],
+  calendario:['c1-negocio','c1-plataforma','c1-objetivo','c1-persona','c1-temas','c1-frequencia','c1-tom','c1-tecnica','c1-formato'],
+  whatsapp:  ['w1-objetivo','w1-produto','w1-persona','w1-local','w1-origem','w1-confianca','w1-beneficio','w1-urgencia'],
+};
+
+function estTokens(text) {
+  return Math.round(text.split(/\s+/).length * 1.35);
+}
+
+function rebuild(tab) {
+  const prompt = templates[tab]();
+  const box = document.getElementById('box-' + tab);
+
+  // Render with highlights
+  const escaped = prompt
+    .replace(/&/g,'&amp;')
+    .replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;');
+  box.innerHTML = escaped;
+
+  // Token count
+  document.getElementById('tok-' + tab).textContent = estTokens(prompt).toLocaleString('pt-BR');
+
+  // Completion
+  const fields = fieldMap[tab];
+  const filled = fields.filter(id => {
+    const el = document.getElementById(id);
+    return el && el.value.trim() !== '';
+  }).length;
+  const pct = Math.round((filled / fields.length) * 100);
+  document.getElementById('fill-' + tab).style.width = pct + '%';
+  document.getElementById('pct-' + tab).textContent = pct + '%';
+}
+
+// ──────────────────────────────────────────
+// TAB SWITCH
+// ──────────────────────────────────────────
+function switchTab(tab, btn) {
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('panel-' + tab).classList.add('active');
+  btn.classList.add('active');
+}
+
+// ──────────────────────────────────────────
+// COPY
+// ──────────────────────────────────────────
+function copyPrompt(tab) {
+  const prompt = templates[tab]();
+  const btn = document.getElementById('copybtn-' + tab);
+
+  navigator.clipboard.writeText(prompt).then(() => {
+    btn.textContent = '✅ Copiado com sucesso!';
+    btn.classList.add('success');
+    setTimeout(() => {
+      btn.textContent = '📋 Copiar Prompt Completo';
+      btn.classList.remove('success');
+    }, 2500);
+  }).catch(() => {
+    // Fallback
+    const ta = document.createElement('textarea');
+    ta.value = prompt;
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+    btn.textContent = '✅ Copiado!';
+    btn.classList.add('success');
+    setTimeout(() => {
+      btn.textContent = '📋 Copiar Prompt Completo';
+      btn.classList.remove('success');
+    }, 2500);
+  });
+}
+
+// Init
+['leads','vendas','calendario','whatsapp'].forEach(rebuild);
+</script>
+</body>
+</html>
